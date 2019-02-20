@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib import slim
 
 from nets import vgg
+from nets import DeepLabV3_plus
 from nets import frontend_builder
 from utils.rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
 
@@ -86,21 +87,21 @@ def model(image):
 
     return bbox_pred, cls_pred, cls_prob
 
-def model_z(image):
+def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus", is_training=True):
 
     image = mean_image_subtraction(image)
-    frontend = 'ResNet50'
+
     pretrained_dir='models'
-    is_training=True
+    num_classes = 2
+
     logits, end_points, frontend_scope, init_fn = frontend_builder.build_frontend(image, frontend, pretrained_dir=pretrained_dir, is_training=is_training)
 
     conv5_3 = end_points['pool4']
-
     rpn_conv = slim.conv2d(conv5_3, 512, 3)
 
     # bbox_pred = lstm_fc(rpn_conv, 512, 10 * 4, scope_name="bbox_pred")
     # cls_pred = lstm_fc(rpn_conv, 512, 10 * 2, scope_name="cls_pred")
-    
+
     bbox_pred = slim.conv2d(rpn_conv, 10 * 4, 1, padding='VALID', activation_fn=None)
     cls_pred = slim.conv2d(rpn_conv, 10 * 2, 1, padding='VALID', activation_fn=None)
 
@@ -113,7 +114,9 @@ def model_z(image):
                           [-1, cls_pred_reshape_shape[1], cls_pred_reshape_shape[2], cls_pred_reshape_shape[3]],
                           name="cls_prob")
 
-    return bbox_pred, cls_pred, cls_prob
+    deep_network = DeepLabV3_plus.build_deeplabv3_plus(image, num_classes, end_points, is_training=is_training)
+
+    return bbox_pred, cls_pred, cls_prob, deep_network, init_fn
 
 def anchor_target_layer(cls_pred, bbox, im_info, scope_name):
     with tf.variable_scope(scope_name) as scope:
@@ -143,7 +146,7 @@ def smooth_l1_dist(deltas, sigma2=9.0, name='smooth_l1_dist'):
                (deltas_abs - 0.5 / sigma2) * tf.abs(smoothL1_sign - 1)
 
 
-def loss(bbox_pred, cls_pred, bbox, im_info):
+def loss(bbox_pred, cls_pred, bbox, im_info, deep_network, label_pred):
     rpn_data = anchor_target_layer(cls_pred, bbox, im_info, "anchor_target_layer")
 
     # classification loss
@@ -158,6 +161,9 @@ def loss(bbox_pred, cls_pred, bbox, im_info):
     rpn_cls_score = tf.gather(rpn_cls_score, rpn_keep)
     rpn_label = tf.gather(rpn_label, rpn_keep)
     rpn_cross_entropy_n = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=rpn_label, logits=rpn_cls_score)
+
+    # deeplab loss
+    deep_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=deep_network, labels=label_pred))
 
     # box loss
     rpn_bbox_pred = bbox_pred
@@ -179,11 +185,14 @@ def loss(bbox_pred, cls_pred, bbox, im_info):
     model_loss = rpn_cross_entropy + rpn_loss_box
 
     regularization_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-    total_loss = tf.add_n(regularization_losses) + model_loss
+    # set alpha to balance
+    alpha = 1
+    total_loss = tf.add_n(regularization_losses) + model_loss + alpha*deep_loss
 
     tf.summary.scalar('model_loss', model_loss)
+    tf.summary.scalar('deep_loss', deep_loss)
     tf.summary.scalar('total_loss', total_loss)
     tf.summary.scalar('rpn_cross_entropy', rpn_cross_entropy)
     tf.summary.scalar('rpn_loss_box', rpn_loss_box)
 
-    return total_loss, model_loss, rpn_cross_entropy, rpn_loss_box
+    return total_loss, model_loss, rpn_cross_entropy, rpn_loss_box, deep_loss

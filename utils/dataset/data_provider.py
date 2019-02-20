@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utils.dataset.data_util import GeneratorEnqueuer
+from utils import helpers
 
 DATA_FOLDER = "data/dataset/mlt/"
 
@@ -40,7 +41,9 @@ def generate_Se_gt(im_info, bbox):
         cv2.rectangle(gt, (p[0], p[1]), (p[2], p[3]), color=(100, 100, 100), thickness=-1)
     return gt
 
-def generator(vis=False):
+
+
+def generator(label_values, vis=False):
     image_list = np.array(get_training_data())
     print('{} training images in {}'.format(image_list.shape[0], DATA_FOLDER))
     index = np.arange(0, image_list.shape[0])
@@ -63,8 +66,11 @@ def generator(vis=False):
                 if len(bbox) == 0:
                     print("Ground truth for image {} empty!".format(im_fn))
                     continue
-                # get label
+                ### get label
                 gt = generate_Se_gt(im_info,bbox)
+                output_label = np.float32(helpers.one_hot_it(label=gt, label_values=label_values))
+                #im = np.float32(im) / 255.0
+
                 if vis:
                     for p in bbox:
                         cv2.rectangle(im, (p[0], p[1]), (p[2], p[3]), color=(0, 0, 255), thickness=1)
@@ -76,7 +82,7 @@ def generator(vis=False):
                     plt.show()
                     plt.close()
                     cv2.imwrite('./'+fn+'.png',gt)
-                yield [im], bbox, im_info #,[gt]
+                yield [im], bbox, im_info ,[output_label]
 
             except Exception as e:
                 print(e)
@@ -85,7 +91,19 @@ def generator(vis=False):
 
 def get_batch(num_workers, **kwargs):
     try:
-        enqueuer = GeneratorEnqueuer(generator(**kwargs), use_multiprocessing=True)
+        csv_path = './data/dataset/'
+        # Get the names of the classes so we can record the evaluation results
+        class_names_list, label_values = helpers.get_label_info(os.path.join(csv_path, "class_dict.csv"))
+        class_names_string = ""
+        for class_name in class_names_list:
+            if not class_name == class_names_list[-1]:
+                class_names_string = class_names_string + class_name + ", "
+            else:
+                class_names_string = class_names_string + class_name
+
+        num_classes = len(label_values)
+
+        enqueuer = GeneratorEnqueuer(generator(label_values, **kwargs), use_multiprocessing=True)
         enqueuer.start(max_queue_size=24, workers=num_workers)
         generator_output = None
         while True:
