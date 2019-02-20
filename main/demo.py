@@ -12,6 +12,7 @@ sys.path.append(os.getcwd())
 from nets import model_train as model
 from utils.rpn_msr.proposal_layer import proposal_layer
 from utils.text_connector.detectors import TextDetector
+from utils import helpers
 
 tf.app.flags.DEFINE_string('test_data_path', 'data/demo/', '')
 tf.app.flags.DEFINE_string('output_path', 'data/res/', '')
@@ -61,10 +62,11 @@ def main(argv=None):
     with tf.get_default_graph().as_default():
         input_image = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_image')
         input_im_info = tf.placeholder(tf.float32, shape=[None, 3], name='input_im_info')
+        #deep_output = tf.placeholder(tf.float32, shape=[None, None, None, 2], name='deep_output')
 
         global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
 
-        bbox_pred, cls_pred, cls_prob = model.model_z(input_image)
+        bbox_pred, cls_pred, cls_prob, deep_pred, _ = model.model_z(input_image, is_training=False)
 
         variable_averages = tf.train.ExponentialMovingAverage(0.997, global_step)
         saver = tf.train.Saver(variable_averages.variables_to_restore())
@@ -89,10 +91,22 @@ def main(argv=None):
                 img, (rh, rw) = resize_image(im)
                 h, w, c = img.shape
                 im_info = np.array([h, w, c]).reshape([1, 3])
-                bbox_pred_val, cls_prob_val = sess.run([bbox_pred, cls_prob],
+                bbox_pred_val, cls_prob_val, deep_pred_val = sess.run([bbox_pred, cls_prob, deep_pred],
                                                        feed_dict={input_image: [img],
                                                                   input_im_info: im_info})
 
+                ###
+                se_img = img.copy()
+                output_image = np.array(deep_pred_val)
+                output_image = helpers.reverse_one_hot(output_image)
+                out_vis_image = helpers.colour_code_segmentation(output_image, label_values)
+                cv2.imwrite(os.path.join(FLAGS.output_path + 'pred/pred_' + fn[0:-4] + '.png'), cv2.cvtColor(np.uint8(out_vis_image), cv2.COLOR_RGB2BGR))
+                for i in range(w):
+                    for j in range(h):
+                        if out_vis_image[i][j][0] == 100:
+                            se_img[i][j] = tuple([(k+255)/2 for k in se_img[i][j]])
+                cv2.imwrite(os.path.join(FLAGS.output_path + 'com_' + fn[0:-4] + '.png'), se_img)
+                ###
                 textsegs, _ = proposal_layer(cls_prob_val, bbox_pred_val, im_info)
                 scores = textsegs[:, 0]
                 textsegs = textsegs[:, 1:5]
