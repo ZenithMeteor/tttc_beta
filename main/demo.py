@@ -59,6 +59,9 @@ def main(argv=None):
     os.makedirs(FLAGS.output_path)
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
 
+    class_names_list, label_values = helpers.get_label_info(os.path.join('./data/dataset/', "class_dict.csv"))
+    num_classes = len(label_values)
+
     with tf.get_default_graph().as_default():
         input_image = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_image')
         input_im_info = tf.placeholder(tf.float32, shape=[None, 3], name='input_im_info')
@@ -96,16 +99,22 @@ def main(argv=None):
                                                                   input_im_info: im_info})
 
                 ###
+                _, fn = os.path.split(im_fn)
+                fn, _ = os.path.splitext(fn)
                 se_img = img.copy()
-                output_image = np.array(deep_pred_val)
+                output_image = np.array(deep_pred_val[0,:,:,:])
+                print(np.shape(output_image))
                 output_image = helpers.reverse_one_hot(output_image)
                 out_vis_image = helpers.colour_code_segmentation(output_image, label_values)
-                cv2.imwrite(os.path.join(FLAGS.output_path + 'pred/pred_' + fn[0:-4] + '.png'), cv2.cvtColor(np.uint8(out_vis_image), cv2.COLOR_RGB2BGR))
-                for i in range(w):
-                    for j in range(h):
+                # cv2.imwrite(os.path.join(FLAGS.output_path + 'pred_' + fn + '.png'), cv2.cvtColor(np.uint8(out_vis_image), cv2.COLOR_RGB2BGR))
+                # cv2.imwrite(os.path.join(FLAGS.output_path + 'pred_' + fn + '.png'), out_vis_image)
+                print(np.shape(out_vis_image))
+                print(w,h,fn)
+                for i in range(h):
+                    for j in range(w):
                         if out_vis_image[i][j][0] == 100:
                             se_img[i][j] = tuple([(k+255)/2 for k in se_img[i][j]])
-                cv2.imwrite(os.path.join(FLAGS.output_path + 'com_' + fn[0:-4] + '.png'), se_img)
+                cv2.imwrite(os.path.join(FLAGS.output_path + 'com_' + fn + '.png'), se_img[:, :, ::-1]) #BGR to RGB
                 ###
                 textsegs, _ = proposal_layer(cls_prob_val, bbox_pred_val, im_info)
                 scores = textsegs[:, 0]
