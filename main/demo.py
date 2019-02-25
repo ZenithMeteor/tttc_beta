@@ -114,6 +114,7 @@ def main(argv=None):
                     for j in range(w):
                         if out_vis_image[i][j][0] == 100:
                             se_img[i][j] = tuple([(k+255)/2 for k in se_img[i][j]])
+                se_img = cv2.resize(se_img, None, None, fx=1.0 / rh, fy=1.0 / rw, interpolation=cv2.INTER_LINEAR)
                 cv2.imwrite(os.path.join(FLAGS.output_path + 'com_' + fn + '.png'), se_img[:, :, ::-1]) #BGR to RGB
                 ###
                 textsegs, _ = proposal_layer(cls_prob_val, bbox_pred_val, im_info)
