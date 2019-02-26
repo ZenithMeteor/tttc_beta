@@ -87,20 +87,21 @@ def model(image):
 
     return bbox_pred, cls_pred, cls_prob
 
-def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus", is_training=True):
+def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus"):
 
     image = mean_image_subtraction(image)
 
     pretrained_dir='models'
     num_classes = 2
 
-    logits, end_points, frontend_scope, init_fn = frontend_builder.build_frontend(image, frontend, pretrained_dir=pretrained_dir, is_training=is_training)
+    logits, end_points, frontend_scope, init_fn = frontend_builder.build_frontend(image, frontend, pretrained_dir=pretrained_dir)
 
-    conv5_3 = end_points['pool4']
-    rpn_conv = slim.conv2d(conv5_3, 512, 3)
+    net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule(end_points['pool4'])
+    net = slim.conv2d(net, 256, [1, 1], scope="conv_1x1_output", activation_fn=None)
 
-    # bbox_pred = lstm_fc(rpn_conv, 512, 10 * 4, scope_name="bbox_pred")
-    # cls_pred = lstm_fc(rpn_conv, 512, 10 * 2, scope_name="cls_pred")
+    conv4_3 = end_points['pool4']
+    rpn_conv = slim.conv2d(conv4_3, 256, 3)
+    rpn_conv = tf.concat((rpn_conv, net), axis=3)
 
     bbox_pred = slim.conv2d(rpn_conv, 10 * 4, 1, padding='VALID', activation_fn=None)
     cls_pred = slim.conv2d(rpn_conv, 10 * 2, 1, padding='VALID', activation_fn=None)
@@ -114,7 +115,7 @@ def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus", is_trai
                           [-1, cls_pred_reshape_shape[1], cls_pred_reshape_shape[2], cls_pred_reshape_shape[3]],
                           name="cls_prob")
 
-    deep_network = DeepLabV3_plus.build_deeplabv3_plus(image, num_classes, end_points, is_training=is_training)
+    deep_network = DeepLabV3_plus.build_deeplabv3_plus(image, num_classes, end_points, net)
 
     return bbox_pred, cls_pred, cls_prob, deep_network, init_fn
 

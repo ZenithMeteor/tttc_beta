@@ -58,7 +58,7 @@ def AtrousSpatialPyramidPoolingModule(inputs, depth=256):
 
 
 
-def build_deeplabv3_plus(inputs, num_classes, end_points, weight_decay=1e-5, is_training=True, pretrained_dir="models"):
+def build_deeplabv3_plus(inputs, num_classes, end_points, net):
     """
     Builds the DeepLabV3 model.
 
@@ -74,8 +74,8 @@ def build_deeplabv3_plus(inputs, num_classes, end_points, weight_decay=1e-5, is_
 
     encoder_features = end_points['pool2']
 
-    net = AtrousSpatialPyramidPoolingModule(end_points['pool4'])
-    net = slim.conv2d(net, 256, [1, 1], scope="conv_1x1_output", activation_fn=None)
+    # net = AtrousSpatialPyramidPoolingModule(end_points['pool4'])
+    # net = slim.conv2d(net, 256, [1, 1], scope="conv_1x1_output", activation_fn=None)
     decoder_features = Upsampling(net, label_size / 4)
 
     encoder_features = slim.conv2d(encoder_features, 48, [1, 1], activation_fn=tf.nn.relu, normalizer_fn=None)
