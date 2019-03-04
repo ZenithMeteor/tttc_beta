@@ -28,10 +28,8 @@ def ConvBlock(inputs, n_filters, kernel_size=[3, 3]):
 
 def AtrousSpatialPyramidPoolingModule(inputs, depth=256):
     """
-
     ASPP consists of (a) one 1×1 convolution and three 3×3 convolutions with rates = (6, 12, 18) when output stride = 16
     (all with 256 filters and batch normalization), and (b) the image-level features as described in the paper
-
     """
 
     feature_map_size = tf.shape(inputs)
@@ -51,6 +49,39 @@ def AtrousSpatialPyramidPoolingModule(inputs, depth=256):
     atrous_pool_block_18 = slim.conv2d(inputs, depth, [3, 3], rate=18, activation_fn=None)
 
     net = tf.concat((image_features, atrous_pool_block_1, atrous_pool_block_6, atrous_pool_block_12, atrous_pool_block_18), axis=3)
+
+    return net
+
+def AtrousSpatialPyramidPoolingModule_z(inputs, depth=256):
+    """
+
+    ASPP consists of (a) one 1×1 convolution and three 3×3 convolutions with rates = (6, 12, 18) when output stride = 16
+    (all with 256 filters and batch normalization), and (b) the image-level features as described in the paper
+
+    """
+
+    feature_map_size = tf.shape(inputs)
+
+    # Global average pooling
+    image_features = tf.reduce_mean(inputs, [1, 2], keep_dims=True)
+
+    image_features = slim.conv2d(image_features, depth, [1, 1], activation_fn=None)
+    image_features = tf.image.resize_bilinear(image_features, (feature_map_size[1], feature_map_size[2]))
+
+    # atrous_pool_block_1 = slim.conv2d(inputs, depth, [1, 1], activation_fn=None)
+    # atrous_pool_block_6 = slim.conv2d(inputs, depth, [3, 3], rate=6, activation_fn=None)
+    # atrous_pool_block_12 = slim.conv2d(inputs, depth, [3, 3], rate=12, activation_fn=None)
+    # atrous_pool_block_18 = slim.conv2d(inputs, depth, [3, 3], rate=18, activation_fn=None)
+
+    atrous_pool_block_3 = slim.conv2d(inputs, depth, [3, 3], rate=3, activation_fn=None)
+    atrous_pool_block_6 = slim.conv2d(inputs, depth, [3, 3], rate=6, activation_fn=None)
+    atrous_pool_block_9 = slim.conv2d(inputs, depth, [3, 3], rate=9, activation_fn=None)
+    atrous_pool_block_12 = slim.conv2d(inputs, depth, [3, 3], rate=12, activation_fn=None)
+    # atrous_pool_block_15 = slim.conv2d(inputs, depth, [3, 3], rate=15, activation_fn=None)
+    # atrous_pool_block_18 = slim.conv2d(inputs, depth, [3, 3], rate=18, activation_fn=None)
+
+    # net = tf.concat((image_features, atrous_pool_block_1, atrous_pool_block_6, atrous_pool_block_12, atrous_pool_block_18), axis=3)
+    net = tf.concat((image_features, atrous_pool_block_3, atrous_pool_block_6, atrous_pool_block_9, atrous_pool_block_12), axis=3)
 
     return net
 

@@ -11,7 +11,7 @@ from nets import model_train as model
 from utils.dataset import data_provider as data_provider
 
 tf.app.flags.DEFINE_float('learning_rate', 1e-5, '')
-tf.app.flags.DEFINE_integer('max_steps', 200000, '')
+tf.app.flags.DEFINE_integer('max_steps', 500000, '')
 tf.app.flags.DEFINE_integer('decay_steps', 30000, '')
 tf.app.flags.DEFINE_float('decay_rate', 0.1, '')
 tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
@@ -50,7 +50,7 @@ def main(argv=None):
             total_loss, model_loss, rpn_cross_entropy, rpn_loss_box, deep_loss = model.loss(bbox_pred, cls_pred, input_bbox,
                                                                                  input_im_info, deep_network, deepnet_ouput)
             batch_norm_updates_op = tf.group(*tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope))
-            grads = opt.compute_gradients(total_loss)
+            grads = opt.compute_gradients(total_loss) # compute_gradients return：A list of (gradient, variable) pairs
 
     apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
