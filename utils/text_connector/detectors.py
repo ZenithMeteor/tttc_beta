@@ -15,10 +15,10 @@ class TextDetector:
         elif self.mode == "O":
             self.text_proposal_connector = TextProposalConnectorOriented()
 
-    def detect(self, text_proposals, scores, size, image):
+    def detect(self, text_proposals, scores, size, image, draw_anchor=False):
         # 删除得分较低的proposal
-        # keep_inds = np.where(scores > TextLineCfg.TEXT_PROPOSALS_MIN_SCORE)[0]
-        keep_inds = np.where(scores > 0.5)[0]
+        keep_inds = np.where(scores > TextLineCfg.TEXT_PROPOSALS_MIN_SCORE)[0]
+        # keep_inds = np.where(scores > 0.5)[0]
         text_proposals, scores = text_proposals[keep_inds], scores[keep_inds]
 
         # 按得分排序
@@ -30,7 +30,7 @@ class TextDetector:
         text_proposals, scores = text_proposals[keep_inds], scores[keep_inds]
 
         # 获取检测结果
-        text_recs = self.text_proposal_connector.get_text_lines(text_proposals, scores, size, image)
+        text_recs = self.text_proposal_connector.get_text_lines(text_proposals, scores, size, image, draw_anchor)
         # print(text_recs)
         keep_inds = self.filter_boxes(text_recs)
         return text_recs[keep_inds]
@@ -45,8 +45,8 @@ class TextDetector:
             widths[index] = (abs(box[2] - box[0]) + abs(box[6] - box[4])) / 2.0 + 1
             scores[index] = box[8]
             index += 1
-        
-        return np.where((widths / heights > TextLineCfg.MIN_RATIO) & (scores > 0.5) &
+
+        # return np.where((widths / heights > TextLineCfg.MIN_RATIO) & (scores > 0.5) &
+        #                 (widths > (TextLineCfg.TEXT_PROPOSALS_WIDTH * TextLineCfg.MIN_NUM_PROPOSALS)))[0]
+        return np.where((widths / heights > TextLineCfg.MIN_RATIO) & (scores > TextLineCfg.LINE_MIN_SCORE) &
                         (widths > (TextLineCfg.TEXT_PROPOSALS_WIDTH * TextLineCfg.MIN_NUM_PROPOSALS)))[0]
-        # return np.where((widths / heights > TextLineCfg.MIN_RATIO) & (scores > TextLineCfg.LINE_MIN_SCORE) &
-                        # (widths > (TextLineCfg.TEXT_PROPOSALS_WIDTH * TextLineCfg.MIN_NUM_PROPOSALS)))[0]

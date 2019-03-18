@@ -21,7 +21,7 @@ def orderConvex(p):
     return points
 
 
-def shrink_poly(poly, r=16):
+def shrink_poly(poly, stride=16):
     # y = kx + b
     x_min = int(np.min(poly[:, 0]))
     x_max = int(np.max(poly[:, 0]))
@@ -34,18 +34,18 @@ def shrink_poly(poly, r=16):
 
     res = []
 
-    start = int((x_min // 16 + 1) * 16)
-    end = int((x_max // 16) * 16)
+    start = int((x_min // stride + 1) * stride)
+    end = int((x_max // stride) * stride)
 
     p = x_min
     res.append([p, int(k1 * p + b1),
-                start - 1, int(k1 * (p + 15) + b1),
-                start - 1, int(k2 * (p + 15) + b2),
+                start - 1, int(k1 * (p + stride - 1) + b1),
+                start - 1, int(k2 * (p + stride - 1) + b2),
                 p, int(k2 * p + b2)])
 
-    for p in range(start, end + 1, r):
+    for p in range(start, end + 1, stride):
         res.append([p, int(k1 * p + b1),
-                    (p + 15), int(k1 * (p + 15) + b1),
-                    (p + 15), int(k2 * (p + 15) + b2),
+                    (p + stride - 1), int(k1 * (p + stride - 1) + b1),
+                    (p + stride - 1), int(k2 * (p + stride - 1) + b2),
                     p, int(k2 * p + b2)])
     return np.array(res, dtype=np.int).reshape([-1, 8])

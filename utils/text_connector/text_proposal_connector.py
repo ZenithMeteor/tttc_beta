@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import cv2
 
@@ -18,20 +19,20 @@ class TextProposalConnector:
         # if X only include one point, the function will get line y=Y[0]
         if np.sum(X == X[0]) == len(X):
             return Y[0], Y[0]
-        p = np.poly1d(np.polyfit(X, Y, 1))
+        p = np.poly1d(np.polyfit(X, Y, 1)) ## np.polyfit(X,Y,2): 2階乘，即x最高次方是2 ex: y=ax**2+bx+c, 但僅產生係數,即return[a,b,c]; np.poly1d: 產生出線性方程式 =>ax**2+bx+c
         return p(x1), p(x2)
 
-    def get_text_lines(self, text_proposals, scores, im_size, im):
+    def get_text_lines(self, text_proposals, scores, im_size, im, draw_anchor):
         # tp=text proposal
         tp_groups = self.group_text_proposals(text_proposals, scores, im_size)
         text_lines = np.zeros((len(tp_groups), 5), np.float32)
 
         for index, tp_indices in enumerate(tp_groups):
             text_line_boxes = text_proposals[list(tp_indices)]
-            
-            for i in range(0, len(text_line_boxes)):
-                cv2.rectangle(im,(text_line_boxes[i, 0] ,text_line_boxes[i, 1]), (text_line_boxes[i, 2] ,text_line_boxes[i, 3]), (0,255,0))
-            
+            if draw_anchor == True:
+                for i in range(0, len(text_line_boxes)):
+                    cv2.rectangle(im,(text_line_boxes[i, 0] ,text_line_boxes[i, 1]), (text_line_boxes[i, 2] ,text_line_boxes[i, 3]), (0,0,255))
+
 
             x0 = np.min(text_line_boxes[:, 0])
             x1 = np.max(text_line_boxes[:, 2])
