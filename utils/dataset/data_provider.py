@@ -9,7 +9,7 @@ import numpy as np
 from utils.dataset.data_util import GeneratorEnqueuer
 from utils import helpers
 
-DATA_FOLDER = "data/dataset/mlt/"
+DATA_FOLDER = "data/dataset/mlt8/"
 
 
 def get_training_data():
@@ -35,15 +35,38 @@ def load_annoataion(p):
         bbox.append([x_min, y_min, x_max, y_max, 1])
     return bbox
 
-def generate_Se_gt(im_info, bbox):
+
+def dilate_se(lx,ly,rx,ry,_):
+    # coefficient of dilatation
+    exx=3
+    exy=1
+
+    w = rx-lx
+    h = ry-ly
+    cx = w/2 + lx
+    cy = h/2 + ly
+    lx = int(cx - w*exx)
+    rx = int(cx + w*exx)
+    ly = int(cy - h*exy)
+    ry = int(cy + h*exy)
+    return lx,ly,rx,ry
+
+
+def generate_Se_gt(im_info, bbox, dilate=False):
     gt = np.zeros((im_info[0][0], im_info[0][1], 1), np.uint8)
     for p in bbox:
-        cv2.rectangle(gt, (p[0], p[1]), (p[2], p[3]), color=(100, 100, 100), thickness=-1)
+        if dilate:
+            lx,ly,rx,ry=dilate_se(*p)
+            p[0] = lx if lx >= 0 else 0
+            p[2] = rx if rx <= im_info[0][1] else im_info[0][1]
+            p[1] = ly if ly >= 0 else 0
+            p[3] = ry if ry <= im_info[0][0] else im_info[0][0]
+
+        cv2.rectangle(gt, (p[0], p[1]), (p[2], p[3]), color=(100, 100, 100), thickness=2)#-1
     return gt
 
 
-
-def generator(label_values, vis=False):
+def generator(label_values, dilate, vis=False):
     image_list = np.array(get_training_data())
     print('{} training images in {}'.format(image_list.shape[0], DATA_FOLDER))
     index = np.arange(0, image_list.shape[0])
@@ -67,7 +90,7 @@ def generator(label_values, vis=False):
                     print("Ground truth for image {} empty!".format(im_fn))
                     continue
                 ### get label
-                gt = generate_Se_gt(im_info,bbox)
+                gt = generate_Se_gt(im_info, bbox, dilate)
                 output_label = np.float32(helpers.one_hot_it(label=gt, label_values=label_values))
                 #im = np.float32(im) / 255.0
 
@@ -81,7 +104,7 @@ def generator(label_values, vis=False):
                     plt.tight_layout()
                     plt.show()
                     plt.close()
-                    cv2.imwrite('./'+fn+'.png',gt)
+                    cv2.imwrite('./tt/'+fn+'.png',gt)
                 yield [im], bbox, im_info ,[output_label]
 
             except Exception as e:
@@ -89,7 +112,7 @@ def generator(label_values, vis=False):
                 continue
 
 
-def get_batch(num_workers, **kwargs):
+def get_batch(num_workers, dilate, **kwargs):
     try:
         csv_path = './data/dataset/'
         # Get the names of the classes so we can record the evaluation results
@@ -103,7 +126,7 @@ def get_batch(num_workers, **kwargs):
 
         num_classes = len(label_values)
 
-        enqueuer = GeneratorEnqueuer(generator(label_values, **kwargs), use_multiprocessing=True)
+        enqueuer = GeneratorEnqueuer(generator(label_values, dilate, **kwargs), use_multiprocessing=True)
         enqueuer.start(max_queue_size=24, workers=num_workers)
         generator_output = None
         while True:
@@ -121,7 +144,7 @@ def get_batch(num_workers, **kwargs):
 
 
 if __name__ == '__main__':
-    gen = get_batch(num_workers=2, vis=True)
+    gen = get_batch(num_workers=2, dilate=True, vis=True)
     while True:
-        image, bbox, im_info = next(gen)
+        image, bbox, im_info, _ = next(gen)
         print('done')

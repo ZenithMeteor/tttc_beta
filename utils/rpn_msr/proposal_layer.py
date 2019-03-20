@@ -52,7 +52,7 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, _feat_stride=[1
     min_size = cfg.RPN_MIN_SIZE  # 候选box的最小尺寸，目前是16，高宽均要大于16
 
     height, width = rpn_cls_prob_reshape.shape[1:3]  # feature-map的高宽
-    width = width // 10
+    width = width // _num_anchors #10
 
     # the first set of _num_anchors channels are bg probs
     # the second set are the fg probs, which we want

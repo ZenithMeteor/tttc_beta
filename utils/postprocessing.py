@@ -15,18 +15,21 @@ def compare(boxes, label, img, im_name):
         None
         directly draw compared image
     """
-
+    boxes = np.array(boxes, dtype=np.int)
     newboxes = []
+    print(boxes)
     for i, box in enumerate(boxes):
         boxdone = False
-        min_x = min(box[0], box[2])
+        min_x = int(min(box[0], box[2]))
         min_x = int(min(box[0], box[2]))
         max_x = int(max(box[4], box[6]))
         min_y = int(min(box[1], box[5]))
         max_y = int(max(box[3], box[7]))
         for x in range(min_x, max_x):
+            print(x)
             for y in range(min_y, max_y):
-                if label[y][x][0] == 100:
+                if label[x][y][0] == 100:
+                    # print(x,y)
                     newboxes.append(box)
                     boxdone = True
                     break
@@ -34,10 +37,14 @@ def compare(boxes, label, img, im_name):
                 break
 
     newboxes = np.array(newboxes, dtype=np.int)
+    print(newboxes)
+    # cv2.polylines(img, [newboxes[0][:8].astype(np.int32).reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2)
+    # cv2.polylines(img, [newboxes[1][:8].astype(np.int32).reshape((-1, 1, 2))], True, color=(255, 0, 0), thickness=2)
+    # cv2.polylines(img, [newboxes[2][:8].astype(np.int32).reshape((-1, 1, 2))], True, color=(0, 255, 255), thickness=2)
     for i, box in enumerate(newboxes):
-        cv2.polylines(img, [newboxes[:8].astype(np.int32).reshape((-1, 1, 2))], True, color=(0, 255, 0),
+        cv2.polylines(img, [box[:8].astype(np.int32).reshape((-1, 1, 2))], True, color=(0, 255, 0),
                       thickness=2)
-    cv2.imwrite(os.path.join('./data/test/', im_name + '.png'), img)
+    cv2.imwrite(os.path.join('./data/test/', im_name), img)
 
     # return newboxes
 if __name__ == '__main__':
@@ -45,6 +52,7 @@ if __name__ == '__main__':
     demo_path = os.getcwd() + '/data/test/demo'
     files = os.listdir(demo_path)
     files.sort()
+    files=files[:1]
     for file in files:
         img = cv2.imread(os.path.join(demo_path ,file))
         _, basename = os.path.split(file)
@@ -52,7 +60,7 @@ if __name__ == '__main__':
             continue
         stem, ext = os.path.splitext(basename)
         gt_file = os.path.join(path, stem + '.txt')
-        label_path = os.path.join(path, 'com_' + stem + '.png')
+        label_path = os.path.join(path, 'pre_' + stem + '.png')
         print(label_path)
         label = cv2.imread(label_path)
 

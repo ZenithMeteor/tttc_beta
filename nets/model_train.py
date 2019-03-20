@@ -3,6 +3,7 @@ from tensorflow.contrib import slim
 
 from nets import vgg
 from nets import DeepLabV3_plus
+from nets import DeepLabV3_plus_k
 from nets import frontend_builder
 from utils.rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
 
@@ -21,73 +22,73 @@ def make_var(name, shape, initializer=None):
     return tf.get_variable(name, shape, initializer=initializer)
 
 
-def Bilstm(net, input_channel, hidden_unit_num, output_channel, scope_name):
-    # width--->time step
-    with tf.variable_scope(scope_name) as scope:
-        shape = tf.shape(net)
-        N, H, W, C = shape[0], shape[1], shape[2], shape[3]
-        net = tf.reshape(net, [N * H, W, C])
-        net.set_shape([None, None, input_channel])
-
-        lstm_fw_cell = tf.contrib.rnn.LSTMCell(hidden_unit_num, state_is_tuple=True)
-        lstm_bw_cell = tf.contrib.rnn.LSTMCell(hidden_unit_num, state_is_tuple=True)
-
-        lstm_out, last_state = tf.nn.bidirectional_dynamic_rnn(lstm_fw_cell, lstm_bw_cell, net, dtype=tf.float32)
-        lstm_out = tf.concat(lstm_out, axis=-1)
-
-        lstm_out = tf.reshape(lstm_out, [N * H * W, 2 * hidden_unit_num])
-
-        init_weights = tf.contrib.layers.variance_scaling_initializer(factor=0.01, mode='FAN_AVG', uniform=False)
-        init_biases = tf.constant_initializer(0.0)
-        weights = make_var('weights', [2 * hidden_unit_num, output_channel], init_weights)
-        biases = make_var('biases', [output_channel], init_biases)
-
-        outputs = tf.matmul(lstm_out, weights) + biases
-
-        outputs = tf.reshape(outputs, [N, H, W, output_channel])
-        return outputs
-
-
-def lstm_fc(net, input_channel, output_channel, scope_name):
-    with tf.variable_scope(scope_name) as scope:
-        shape = tf.shape(net)
-        N, H, W, C = shape[0], shape[1], shape[2], shape[3]
-        net = tf.reshape(net, [N * H * W, C])
-
-        init_weights = tf.contrib.layers.variance_scaling_initializer(factor=0.01, mode='FAN_AVG', uniform=False)
-        init_biases = tf.constant_initializer(0.0)
-        weights = make_var('weights', [input_channel, output_channel], init_weights)
-        biases = make_var('biases', [output_channel], init_biases)
-
-        output = tf.matmul(net, weights) + biases
-        output = tf.reshape(output, [N, H, W, output_channel])
-    return output
+# def Bilstm(net, input_channel, hidden_unit_num, output_channel, scope_name):
+#     # width--->time step
+#     with tf.variable_scope(scope_name) as scope:
+#         shape = tf.shape(net)
+#         N, H, W, C = shape[0], shape[1], shape[2], shape[3]
+#         net = tf.reshape(net, [N * H, W, C])
+#         net.set_shape([None, None, input_channel])
+#
+#         lstm_fw_cell = tf.contrib.rnn.LSTMCell(hidden_unit_num, state_is_tuple=True)
+#         lstm_bw_cell = tf.contrib.rnn.LSTMCell(hidden_unit_num, state_is_tuple=True)
+#
+#         lstm_out, last_state = tf.nn.bidirectional_dynamic_rnn(lstm_fw_cell, lstm_bw_cell, net, dtype=tf.float32)
+#         lstm_out = tf.concat(lstm_out, axis=-1)
+#
+#         lstm_out = tf.reshape(lstm_out, [N * H * W, 2 * hidden_unit_num])
+#
+#         init_weights = tf.contrib.layers.variance_scaling_initializer(factor=0.01, mode='FAN_AVG', uniform=False)
+#         init_biases = tf.constant_initializer(0.0)
+#         weights = make_var('weights', [2 * hidden_unit_num, output_channel], init_weights)
+#         biases = make_var('biases', [output_channel], init_biases)
+#
+#         outputs = tf.matmul(lstm_out, weights) + biases
+#
+#         outputs = tf.reshape(outputs, [N, H, W, output_channel])
+#         return outputs
 
 
-def model(image):
-    image = mean_image_subtraction(image)
-    with slim.arg_scope(vgg.vgg_arg_scope()):
-        conv5_3 = vgg.vgg_16(image)
+# def lstm_fc(net, input_channel, output_channel, scope_name):
+#     with tf.variable_scope(scope_name) as scope:
+#         shape = tf.shape(net)
+#         N, H, W, C = shape[0], shape[1], shape[2], shape[3]
+#         net = tf.reshape(net, [N * H * W, C])
+#
+#         init_weights = tf.contrib.layers.variance_scaling_initializer(factor=0.01, mode='FAN_AVG', uniform=False)
+#         init_biases = tf.constant_initializer(0.0)
+#         weights = make_var('weights', [input_channel, output_channel], init_weights)
+#         biases = make_var('biases', [output_channel], init_biases)
+#
+#         output = tf.matmul(net, weights) + biases
+#         output = tf.reshape(output, [N, H, W, output_channel])
+#     return output
 
-    rpn_conv = slim.conv2d(conv5_3, 512, 3)
 
-    lstm_output = Bilstm(rpn_conv, 512, 128, 512, scope_name='BiLSTM')
+# def model(image):
+#     image = mean_image_subtraction(image)
+#     with slim.arg_scope(vgg.vgg_arg_scope()):
+#         conv5_3 = vgg.vgg_16(image)
+#
+#     rpn_conv = slim.conv2d(conv5_3, 512, 3)
+#
+#     lstm_output = Bilstm(rpn_conv, 512, 128, 512, scope_name='BiLSTM')
+#
+#     bbox_pred = lstm_fc(lstm_output, 512, 10 * 4, scope_name="bbox_pred")
+#     cls_pred = lstm_fc(lstm_output, 512, 10 * 2, scope_name="cls_pred")
+#
+#     # transpose: (1, H, W, A x d) -> (1, H, WxA, d)
+#     cls_pred_shape = tf.shape(cls_pred)
+#     cls_pred_reshape = tf.reshape(cls_pred, [cls_pred_shape[0], cls_pred_shape[1], -1, 2])
+#
+#     cls_pred_reshape_shape = tf.shape(cls_pred_reshape)
+#     cls_prob = tf.reshape(tf.nn.softmax(tf.reshape(cls_pred_reshape, [-1, cls_pred_reshape_shape[3]])),
+#                           [-1, cls_pred_reshape_shape[1], cls_pred_reshape_shape[2], cls_pred_reshape_shape[3]],
+#                           name="cls_prob")
+#
+#     return bbox_pred, cls_pred, cls_prob
 
-    bbox_pred = lstm_fc(lstm_output, 512, 10 * 4, scope_name="bbox_pred")
-    cls_pred = lstm_fc(lstm_output, 512, 10 * 2, scope_name="cls_pred")
-
-    # transpose: (1, H, W, A x d) -> (1, H, WxA, d)
-    cls_pred_shape = tf.shape(cls_pred)
-    cls_pred_reshape = tf.reshape(cls_pred, [cls_pred_shape[0], cls_pred_shape[1], -1, 2])
-
-    cls_pred_reshape_shape = tf.shape(cls_pred_reshape)
-    cls_prob = tf.reshape(tf.nn.softmax(tf.reshape(cls_pred_reshape, [-1, cls_pred_reshape_shape[3]])),
-                          [-1, cls_pred_reshape_shape[1], cls_pred_reshape_shape[2], cls_pred_reshape_shape[3]],
-                          name="cls_prob")
-
-    return bbox_pred, cls_pred, cls_prob
-
-def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus"):
+def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus", k_mode=False):
 
     image = mean_image_subtraction(image)
 
@@ -95,8 +96,11 @@ def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus"):
     num_classes = 2
 
     logits, end_points, frontend_scope, init_fn = frontend_builder.build_frontend(image, frontend, pretrained_dir=pretrained_dir)
-
-    net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule(end_points['pool4'])
+    if k_mode is True:
+        net = DeepLabV3_plus_k.AtrousSpatialPyramidPoolingModule(end_points['pool4'])
+    else:
+        net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule(end_points['pool4'])
+    # net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule_z(end_points['pool4'])
     net = slim.conv2d(net, 256, [1, 1], scope="conv_1x1_output", activation_fn=None)
 
     conv4_3 = end_points['pool4']
@@ -119,12 +123,99 @@ def model_z(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus"):
 
     return bbox_pred, cls_pred, cls_prob, deep_network, init_fn
 
-def anchor_target_layer(cls_pred, bbox, im_info, scope_name):
+def model_z8(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus", k_mode=False):
+
+    image = mean_image_subtraction(image)
+
+    pretrained_dir='models'
+    num_classes = 2
+
+    logits, end_points, frontend_scope, init_fn = frontend_builder.build_frontend(image, frontend, pretrained_dir=pretrained_dir)
+
+    net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule_z(end_points['pool4'])
+    # net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule_z(end_points['pool4'])
+    net = slim.conv2d(net, 256, [1, 1], scope="conv_1x1_output", activation_fn=None)
+
+    conv3_3 = end_points['pool3']
+    conv4_3 = end_points['pool4']
+
+    rpn_conv_16 = slim.conv2d(conv4_3, 256, 3)
+    rpn_conv_16 = tf.concat((rpn_conv_16, net), axis=3)
+    rpn_conv_16 = slim.conv2d(rpn_conv_16, 256, 3)
+    rpn_conv_16 = slim.conv2d(rpn_conv_16, 256, 3)
+
+    label_size = tf.shape(image)[1:3]
+    rpn_conv_8 = Upsampling(rpn_conv_16, label_size / 8)
+    rpn_conv_8 = tf.concat((rpn_conv_8, conv3_3), axis=3)
+
+    bbox_pred = slim.conv2d(rpn_conv_8, 10 * 4, 1, padding='VALID', activation_fn=None)
+    cls_pred = slim.conv2d(rpn_conv_8, 10 * 2, 1, padding='VALID', activation_fn=None)
+
+    # transpose: (1, H, W, A x d) -> (1, H, WxA, d)
+    cls_pred_shape = tf.shape(cls_pred)
+    cls_pred_reshape = tf.reshape(cls_pred, [cls_pred_shape[0], cls_pred_shape[1], -1, 2])
+
+    cls_pred_reshape_shape = tf.shape(cls_pred_reshape)
+    cls_prob = tf.reshape(tf.nn.softmax(tf.reshape(cls_pred_reshape, [-1, cls_pred_reshape_shape[3]])),
+                          [-1, cls_pred_reshape_shape[1], cls_pred_reshape_shape[2], cls_pred_reshape_shape[3]],
+                          name="cls_prob")
+
+    deep_network = DeepLabV3_plus.build_deeplabv3_plus(image, num_classes, end_points, net)
+
+    return bbox_pred, cls_pred, cls_prob, deep_network, init_fn
+
+def model_z8_line(image, frontend = 'ResNet50', model_name = "DeepLabV3_plus", k_mode=False):
+
+    # image = mean_image_subtraction(image)
+
+    pretrained_dir='models'
+    num_classes = 2
+    num_anchors = 14
+
+    logits, end_points, frontend_scope, init_fn = frontend_builder.build_frontend(image, frontend, pretrained_dir=pretrained_dir)
+
+    net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule_z(end_points['pool4'])
+    # net = DeepLabV3_plus.AtrousSpatialPyramidPoolingModule_z(end_points['pool4'])
+    # net = slim.conv2d(net, 256, [1, 1], scope="conv_1x1_output", activation_fn=None)
+
+    conv3_3 = end_points['pool3']
+    conv4_3 = end_points['pool4']
+    conv5_3 = end_points['pool5']
+
+    conv_8  = slim.conv2d(conv3_3, 256, 3)
+    conv_16 = slim.conv2d(conv4_3, 256, 3)
+    conv_32 = slim.conv2d(conv5_3, 256, 3)
+
+    label_size = tf.shape(image)[1:3]
+    rpn_conv_8_1 = Upsampling(conv_32, label_size / 8)
+    rpn_conv_8_2 = Upsampling(conv_16, label_size / 8)
+    rpn_conv_8 = tf.concat((rpn_conv_8_1, rpn_conv_8_2, conv3_3), axis=3)
+
+    bbox_pred = slim.conv2d(rpn_conv_8, num_anchors * 4, 1, padding='VALID', activation_fn=None)
+    cls_pred = slim.conv2d(rpn_conv_8, num_anchors * 2, 1, padding='VALID', activation_fn=None)
+
+    # transpose: (1, H, W, A x d) -> (1, H, WxA, d)
+    cls_pred_shape = tf.shape(cls_pred)
+    cls_pred_reshape = tf.reshape(cls_pred, [cls_pred_shape[0], cls_pred_shape[1], -1, 2])
+
+    cls_pred_reshape_shape = tf.shape(cls_pred_reshape)
+    cls_prob = tf.reshape(tf.nn.softmax(tf.reshape(cls_pred_reshape, [-1, cls_pred_reshape_shape[3]])),
+                          [-1, cls_pred_reshape_shape[1], cls_pred_reshape_shape[2], cls_pred_reshape_shape[3]],
+                          name="cls_prob")
+
+    deep_network = DeepLabV3_plus.build_deeplabv3_plus(image, num_classes, end_points, net)
+
+    return bbox_pred, cls_pred, cls_prob, deep_network, init_fn
+
+def Upsampling(inputs,feature_map_shape):
+    return tf.image.resize_bilinear(inputs, size=tf.cast(feature_map_shape, tf.int32))
+
+def anchor_target_layer(cls_pred, bbox, im_info, scope_name, _feat_stride=[8, ], anchor_scales=[8]):
     with tf.variable_scope(scope_name) as scope:
         # 'rpn_cls_score', 'gt_boxes', 'im_info'
         rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = \
             tf.py_func(anchor_target_layer_py,
-                       [cls_pred, bbox, im_info, [16, ], [16]],
+                       [cls_pred, bbox, im_info, _feat_stride, anchor_scales],
                        [tf.float32, tf.float32, tf.float32, tf.float32])
 
         rpn_labels = tf.convert_to_tensor(tf.cast(rpn_labels, tf.int32),
@@ -151,7 +242,7 @@ def loss(bbox_pred, cls_pred, bbox, im_info, deep_network, label_pred):
     rpn_data = anchor_target_layer(cls_pred, bbox, im_info, "anchor_target_layer")
 
     # classification loss
-    # transpose: (1, H, W, A x d) -> (1, H, WxA, d)
+    # transpose: (1, H, W, A x d) -> (1, H, WxA, d)0
     cls_pred_shape = tf.shape(cls_pred)
     cls_pred_reshape = tf.reshape(cls_pred, [cls_pred_shape[0], cls_pred_shape[1], -1, 2])
     rpn_cls_score = tf.reshape(cls_pred_reshape, [-1, 2])

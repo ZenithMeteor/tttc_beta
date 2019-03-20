@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def generate_basic_anchors(sizes, base_size=16):
+def generate_basic_anchors(sizes, base_size=8):
     base_anchor = np.array([0, 0, base_size - 1, base_size - 1], np.int32)
     anchors = np.zeros((len(sizes), 4), np.int32)
     index = 0
@@ -22,10 +22,10 @@ def scale_anchor(anchor, h, w):
     return scaled_anchor
 
 
-def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
+def generate_anchors(base_size=8, ratios=[0.5, 1, 2],
                      scales=2 ** np.arange(3, 6)):
-    heights = [11, 16, 23, 33, 48, 68, 97, 139, 198, 283]
-    widths = [16]
+    heights = [6, 11, 16, 23, 33, 48, 68, 90, 115, 145, 185, 235, 285, 350] #[11, 16, 23, 33, 48, 68, 97, 139, 198, 283]
+    widths = [8]
     sizes = []
     for h in heights:
         for w in widths:

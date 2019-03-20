@@ -178,7 +178,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ], a
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])  # 根据anchor和gtbox计算得真值（anchor和gtbox之间的偏差）
 
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
-    bbox_inside_weights[labels == 1, :] = np.array(cfg.RPN_BBOX_INSIDE_WEIGHTS)  # 内部权重，前景就给1，其他是0
+    bbox_inside_weights[labels == 1, :] = np.array(cfg.RPN_BBOX_INSIDE_WEIGHTS)  # 内部权重，前景就给1，其他是0；只設計讓前景回歸
 
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     if cfg.RPN_POSITIVE_WEIGHT < 0:  # 暂时使用uniform 权重，也就是正样本是1，负样本是0
