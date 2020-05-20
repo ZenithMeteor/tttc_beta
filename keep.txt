@@ -32,3 +32,69 @@ with open('day06-csv.csv', newline='') as csvfile:
 ['台積電', '238', '23']
 ['大同', '40', '121']
 ['華新科', '174', '105']
+
+
+
+file = open("./5130.txt", "r")
+configs = file.readlines()
+file.close()
+file2 = open("./93180.txt", "r")
+configs2 = file2.readlines()
+file.close()
+
+class C:
+    def __init__(self, int):
+        self.Int = int
+        self.Des = ""
+        self.Acl = ""
+    def printdata(self):
+        print(self.Int, self.Des, self.Acl)
+    def printMat(self):
+        return [self.Int, self.Des, self.Acl]
+list = [] 
+num=-1
+for config in configs:
+    line = config.strip().split(' ')
+    if line[0] == "interface":
+        num +=1
+        list.append( C(line[1]) )
+    if line[0] == "description":
+        list[num].Des = line[1:]
+    if line[0] == "ip":
+        if line[1] == "access-group":
+            list[num].Acl = line[2]
+           
+
+    
+LL=[]
+LL.append(list)
+
+list = [] 
+num=-1
+for config in configs2:
+    line = config.strip().split(' ')
+    if line[0] == "interface":
+        num +=1
+        list.append( C(line[1]) )
+    if line[0] == "description":
+        list[num].Des = line[1:]
+    if line[0] == "ip":
+        if line[1] == "access-group":
+            list[num].Acl = line[2]
+           
+
+    
+
+LL.append(list)
+
+for L in LL:
+    for l in L:
+        l.printdata()
+        
+import csv
+with open('day06-csv.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile) # 建立 CSV 檔寫入器
+    writer.writerow(['interface', 'description', 'ACL'])
+    for L in LL:
+        for l in L:
+            writer.writerow(l.printMat())
